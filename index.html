@@ -1,0 +1,351 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorldMap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    </link>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <style>
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+        }
+
+        #map {
+            height: 100%;
+        }
+
+        .geocode-result {
+            background: white;
+            border-bottom: 1px solid #ccc;
+            padding: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+        }
+
+        .geocode-result:hover {
+            background: #f0f0f0;
+        }
+
+        #search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: white;
+            border-radius: 8px;
+        }
+
+        #search {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            width: 300px;
+        }
+
+        #search-input {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            outline: none;
+        }
+
+        #search-button {
+            border: none;
+            border-radius: 4px;
+            padding: 8px;
+            margin-left: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .layer-selector {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .layer-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border: none;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            font-size: 20px;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .layer-button:hover {
+            background-color: #f0f0f0;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .layer-menu {
+            display: none;
+            position: absolute;
+            bottom: 70px;
+            left: 0;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            width: 160px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateY(10px);
+        }
+
+        .layer-menu button {
+            background: none;
+            border: none;
+            padding: 12px 20px;
+            text-align: left;
+            width: 100%;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 2px 0;
+            height: 50px;
+            display: flex;
+            align-items: center;
+        }
+
+        .layer-menu button:hover {
+            background-color: #f7f7f7;
+        }
+
+        #locate,
+        .zoom-button {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s;
+            position: absolute;
+            right: 10px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #locate:hover,
+        .zoom-button:hover {
+            background: #f0f0f0;
+        }
+
+        #locate {
+            bottom: 100px;
+        }
+
+        .zoom-button {
+            margin-bottom: 5px;
+        }
+
+        .zoom-in {
+            bottom: 50px;
+        }
+
+        .zoom-out {
+            bottom: 10px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div id="search">
+        <input id="search-input" type="text" placeholder="Search for a place"
+            class="w-full p-2 border border-gray-300 rounded" autocomplete="off">
+        <button id="search-button"><i class="fas fa-search"></i></button>
+        <div id="search-results" class="bg-white border border-gray-300 rounded mt-1 z-10"></div>
+    </div>
+    <div id="map" class="relative"></div>
+    <div class="layer-selector">
+        <div class="layer-button" id="layerButton"><i class="fas fa-layer-group"></i></div>
+        <div class="layer-menu" id="layerMenu">
+            <button data-layer="default">Default</button>
+        </div>
+    </div>
+    <button id="locate" class="shadow-lg"><i class="fas fa-location-arrow"></i></button>
+    <button class="zoom-button zoom-in shadow-lg"><i class="fas fa-plus"></i></button>
+    <button class="zoom-button zoom-out shadow-lg"><i class="fas fa-minus"></i></button>
+    <script>
+        var map = L.map('map', {
+            zoomControl: false,
+            minZoom: 3,
+            maxZoom: 18,
+            maxBounds: [
+                [-90, -180],
+                [90, 180]
+            ],
+            maxBoundsViscosity: 1.0
+        }).setView([51.505, -0.09], 13);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        var markersLayer = L.layerGroup().addTo(map);
+
+        var geocoder = L.Control.Geocoder.nominatim();
+
+        function performSearch(query) {
+            if (query.length > 2) {
+                geocoder.geocode(query, function (results) {
+                    var resultsContainer = document.getElementById('search-results');
+                    resultsContainer.innerHTML = '';
+                    results.forEach(function (result) {
+                        var resultItem = document.createElement('div');
+                        resultItem.className = 'geocode-result';
+                        resultItem.innerHTML = `
+                            <div class="flex items-center">
+                                <div class="flex-grow">
+                                    <p class="font-bold">${result.name}</p>
+                                </div>
+                            </div>
+                        `;
+                        resultItem.addEventListener('click', function () {
+                            map.flyTo(result.center, 14, {
+                                animate: true,
+                                duration: 3
+                            });
+                            resultsContainer.innerHTML = '';
+                        });
+                        resultsContainer.appendChild(resultItem);
+                    });
+                });
+            }
+        }
+
+        document.getElementById('search-input').addEventListener('input', function () {
+            performSearch(this.value);
+
+            if (this.value === '') {
+                document.getElementById('search-results').innerHTML = '';
+            }
+        });
+
+        document.getElementById('search-button').addEventListener('click', function () {
+            var query = document.getElementById('search-input').value;
+            if (query.length > 2) {
+                geocoder.geocode(query, function (results) {
+                    if (results.length > 0) {
+                        var firstResult = results[0];
+                        document.getElementById('search-input').value = '';
+                        map.flyTo(firstResult.center, 14, {
+                            animate: true,
+                            duration: 2
+                        });
+                        document.getElementById('search-results').innerHTML = '';
+                    }
+                });
+            }
+        });
+
+        document.getElementById('layerButton').addEventListener('click', function () {
+            var menu = document.getElementById('layerMenu');
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        });
+
+        document.querySelectorAll('.layer-menu button').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var selectedLayer = this.getAttribute('data-layer');
+
+                layerMenu.style.display = 'none';
+            });
+        });
+
+        document.getElementById('locate').addEventListener('click', function () {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    var lat = position.coords.latitude;
+                    var lon = position.coords.longitude;
+                    var accuracy = position.coords.accuracy;
+
+                    markersLayer.clearLayers();
+
+                    map.flyTo([lat, lon], 18, {
+                        animate: true,
+                        duration: 2
+                    });
+
+                    L.marker([lat, lon]).addTo(markersLayer)
+                        .bindPopup("You are within " + accuracy + " meters from this point")
+                        .openPopup();
+
+                    L.circle([lat, lon], accuracy).addTo(markersLayer);
+                }, function () {
+                    alert("Location access denied.");
+                }, {
+                    enableHighAccuracy: true
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        });
+
+        map.on('locationfound', function (e) {
+            markersLayer.clearLayers();
+            var radius = e.accuracy / 2;
+            L.marker(e.latlng).addTo(markersLayer)
+                .bindPopup("You are within " + radius + " meters from this point").openPopup();
+            L.circle(e.latlng, radius).addTo(markersLayer);
+        });
+
+        map.on('locationerror', function () {
+            alert("Location access denied.");
+        });
+
+        document.querySelector('.zoom-in').addEventListener('click', function () {
+            map.zoomIn();
+        });
+
+        document.querySelector('.zoom-out').addEventListener('click', function () {
+            map.zoomOut();
+        });
+    </script>
+</body>
+
+</html>
